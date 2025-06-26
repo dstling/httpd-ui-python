@@ -1,0 +1,25 @@
+{
+    "listen_address": "0.0.0.0",
+    "listen_port": 8000,
+    "virtual_directories": {
+        "/": {
+            "physical_path": "/home/user/Downloads/python-pro",
+            "allow_anonymous": false
+        },
+        "/downloads": {
+            "physical_path": "/home/user/Downloads/python-pro/httpd-ui-test",
+            "allow_anonymous": true
+        },
+        "/test": {
+            "physical_path": "/home/user/\u8fc5\u96f7\u4e0b\u8f7d",
+            "allow_anonymous": false
+        },
+        "/test2": {
+            "physical_path": "/home/user/Downloads/linux-6.15",
+            "allow_anonymous": true
+        }
+    },
+    "enable_authentication": true,
+    "auth_username": "admin",
+    "auth_password": "8dc136b7577485b1dfc0d13da0fe3e0f70b68f595b9e0f18d4833eb4b0ee45e8:6e67c2f8447ee147c991ed99af2db8d0"
+}
