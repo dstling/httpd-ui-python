@@ -847,7 +847,7 @@ class FileServerHandler(BaseHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Internal server error: {str(e)}")
 
-    def serve_dir_file(self, physical_path):
+    def serve_dir_file2(self, physical_path):
         """发送文件内容给客户端"""
         try:
             if os.path.isdir(physical_path): #目录
@@ -872,3 +872,133 @@ class FileServerHandler(BaseHTTPRequestHandler):
 
         except Exception as e:
             self.send_error(500, f"Error reading file: {str(e)}")
+
+    def serve_dir_file3(self, physical_path):
+        """发送文件内容给客户端"""
+        try:
+            if os.path.isdir(physical_path): #目录
+                self.list_directory(physical_path)
+            else: #文件
+                print(f"[GET] downloading path:{physical_path}")
+                self.log_message(f"downloading path:{physical_path}")
+
+                mime_type, _ = mimetypes.guess_type(physical_path)
+                if not mime_type:
+                    mime_type = 'application/octet-stream'
+
+                # Linux零拷贝优化
+                if os.name == 'posix':
+                    file_size = os.path.getsize(physical_path)
+                    self.send_response(200)
+                    self.send_header("Content-type", mime_type)
+                    self.send_header("Content-Length", str(file_size))
+                    self.end_headers()
+                    
+                    with open(physical_path, 'rb') as file:
+                        os.sendfile(self.wfile.fileno(), file.fileno(), 0, file_size)
+                    return
+
+                # 通用分块传输方案
+                self.send_response(200)
+                self.send_header("Content-type", mime_type)
+                self.send_header("Transfer-Encoding", "chunked")
+                self.end_headers()
+
+                buffer_size = 8192*1024  # 8KB缓冲区
+                with open(physical_path, 'rb') as file:
+                    while True:
+                        chunk = file.read(buffer_size)
+                        if not chunk:
+                            break
+                        self.wfile.write(f"{len(chunk):X}\r\n".encode())
+                        self.wfile.write(chunk)
+                        self.wfile.write(b"\r\n")
+                self.wfile.write(b"0\r\n\r\n")
+
+        except Exception as e:
+            self.send_error(500, f"Error reading file: {str(e)}")            
+
+    def serve_dir_file(self, physical_path):
+        """发送文件内容给客户端，支持Range请求优化多线程下载"""
+        try:
+            if os.path.isdir(physical_path):
+                self.list_directory(physical_path)
+                return
+                
+            
+            # 获取文件信息
+            file_size = os.path.getsize(physical_path)
+            mime_type, _ = mimetypes.guess_type(physical_path) or 'application/octet-stream'
+            print(f"[GET] downloading path:{physical_path} file_size:{file_size}")
+            self.log_message(f"downloading path:{physical_path}")
+            
+            # 处理Range请求 (支持多线程下载)
+            range_header = self.headers.get('Range')
+            if range_header:
+                # 解析Range头部 (示例: "bytes=0-100,200-300")
+                print("[GET] Range header:", range_header)
+                ranges = []
+                for r in range_header.replace('bytes=', '').split(','):
+                    start_end = r.split('-')
+                    if len(start_end) == 2:
+                        start = int(start_end[0]) if start_end[0] else 0
+                        end = int(start_end[1]) if start_end[1] else file_size - 1
+                        print(f"Range: {start}-{end}")
+                        ranges.append((start, end))
+                
+                # 发送206 Partial Content响应
+                self.send_response(206)
+                self.send_header("Content-type", mime_type)
+                self.send_header("Accept-Ranges", "bytes")
+                self.send_header("Content-Range", f"bytes {ranges[0][0]}-{ranges[0][1]}/{file_size}")
+                self.send_header("Content-Length", str(ranges[0][1] - ranges[0][0] + 1))
+                self.end_headers()
+                
+                # 只处理第一个范围（迅雷等多线程工具会发送多个独立请求）
+                start, end = ranges[0]
+                with open(physical_path, 'rb') as file:
+                    file.seek(start)
+                    remaining = end - start + 1
+                    buffer_size = 1024 * 1024 *1 # 8MB缓冲区
+                    
+                    while remaining > 0:
+                        chunk_size = min(buffer_size, remaining)
+                        chunk = file.read(chunk_size)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                        remaining -= len(chunk)
+                    print(f"一个数据块已发送结束 start: {start} end: {end}")
+                return
+
+            # 无Range请求的完整文件处理
+            # Linux零拷贝优化
+            if os.name == 'posix':
+                print("in linux")
+                self.send_response(200)
+                self.send_header("Content-type", mime_type)
+                self.send_header("Content-Length", str(file_size))
+                self.send_header("Accept-Ranges", "bytes")  # 声明支持Range
+                self.end_headers()
+                with open(physical_path, 'rb') as file:
+                    os.sendfile(self.wfile.fileno(), file.fileno(), 0, file_size)
+                return
+
+            # 通用完整文件传输
+            self.send_response(200)
+            self.send_header("Content-type", mime_type)
+            self.send_header("Content-Length", str(file_size))
+            self.send_header("Accept-Ranges", "bytes")  # 声明支持Range
+            self.end_headers()
+            
+            buffer_size = 8192 * 1024  # 8MB缓冲区
+            with open(physical_path, 'rb') as file:
+                while True:
+                    chunk = file.read(buffer_size)
+                    print(f"chunk size:", len(chunk))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+
+        except Exception as e:
+            self.send_error(500, f"Error reading file: {str(e)}")            
