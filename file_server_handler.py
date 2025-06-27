@@ -356,19 +356,31 @@ class FileServerHandler(BaseHTTPRequestHandler):
         self.send_header('Location', '/login')
         self.end_headers()
         return
-
+    # 添加进度报告方法（与类名一致）
+    def _report_progress(self, current, total):
+        """报告上传进度"""
+        percent = int((current / total) * 100)
+        print(f"[UPLOAD PROGRESS] {percent}%")
+        return percent
     def handle_upload(self):
         """专门处理上传请求"""
         print("[UPLOAD] Handling file upload request")
         try:
+            # 创建 FileUploadHandler 实例并调用其 do_POST 方法
             # 调用上传处理器
             from upload import FileUploadHandler
             FileUploadHandler.do_POST(self)
         except Exception as e:
-            error_msg = f"Upload processing failed: {str(e)}"
-            print(f"[UPLOAD ERROR] {error_msg}")
-            self.send_error(500, error_msg)
-     
+            # 捕获特定异常
+            if isinstance(e, (ConnectionAbortedError, ConnectionResetError)):
+                print(f"[UPLOAD] Client disconnected: {str(e)}")
+            else:
+                error_msg = f"Upload processing failed: {str(e)}"
+                print(f"[UPLOAD ERROR] {error_msg}")
+            
+            # 发送纯英文错误消息避免编码问题
+            self.send_error(500, "Internal server error during upload")
+
     def do_POST(self):
         try:
             if self.path == '/login':
@@ -698,6 +710,8 @@ class FileServerHandler(BaseHTTPRequestHandler):
             content.append('</div>')
             
             # 添加上传进度条和JS优化
+            # file_server_handler.py 中的 list_directory 方法（替换原进度条部分）
+            # 替换现有的进度条JS代码
             content.append('''
             <div id="upload-progress" style="display:none; margin-top:10px;">
                 <progress id="progress-bar" value="0" max="100" style="width:100%;"></progress>
@@ -705,7 +719,10 @@ class FileServerHandler(BaseHTTPRequestHandler):
             </div>
             <script>
             document.querySelector('.upload-form').addEventListener('submit', function(e) {
-                const submitBtn = this.querySelector('input[type="submit"]');
+                e.preventDefault(); // 阻止默认表单提交
+                
+                const form = this;
+                const submitBtn = form.querySelector('input[type="submit"]');
                 submitBtn.disabled = true;
                 submitBtn.value = "上传中...";
                 
@@ -714,27 +731,57 @@ class FileServerHandler(BaseHTTPRequestHandler):
                     progressDiv.style.display = 'block';
                 }
                 
-                let percent = 0;
-                const interval = setInterval(() => {
-                    percent += 10;
-                    if (percent >= 100) {
-                        clearInterval(interval);
-                        return;
+                const formData = new FormData(form);
+                const xhr = new XMLHttpRequest();
+                
+                // 监听上传进度事件
+                xhr.upload.addEventListener('progress', function(event) {
+                    if (event.lengthComputable) {
+                        const percent = Math.round((event.loaded / event.total) * 100);
+                        document.getElementById('progress-bar').value = percent;
+                        document.getElementById('progress-text').textContent = `${percent}%`;
                     }
-                    document.getElementById('progress-bar').value = percent;
-                    document.getElementById('progress-text').textContent = `${percent}%`;
-                }, 300);
+                });
+                
+                // 请求完成处理
+                xhr.addEventListener('load', function() {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        // 插入服务器返回的响应内容
+                        document.body.innerHTML = xhr.responseText;
+                        // 执行响应中的脚本
+                        const scripts = document.body.getElementsByTagName('script');
+                        for (let script of scripts) {
+                            eval(script.innerHTML);
+                        }
+                    } else {
+                        alert('上传失败: ' + xhr.statusText);
+                        submitBtn.disabled = false;
+                        submitBtn.value = "上传文件";
+                        progressDiv.style.display = 'none';
+                    }
+                });
+                
+                // 错误处理
+                xhr.addEventListener('error', function() {
+                    alert('网络错误，上传失败');
+                    submitBtn.disabled = false;
+                    submitBtn.value = "上传文件";
+                    progressDiv.style.display = 'none';
+                });
+                
+                xhr.open('POST', '/upload');
+                xhr.send(formData);
             });
             </script>
             ''')
-
             # 添加上级目录链接
             if self.path != "/":
                 parent_path = os.path.dirname(self.path.rstrip('/'))
                 if not parent_path:
                     parent_path = '/'
-                content.append(f'<a class="parent-link" href="{parent_path}">← 返回上级目录</a>')
-
+                content.append('<div class="virtual-dir"><ul>')
+                content.append(f'<a class="parent-link" href="{parent_path}">[返回上级目录]</a>')
+                content.append('</ul></div>')
             # 根目录添加虚拟目录链接
             if self.path == "/":
                 content.append('<div class="virtual-dir"><h3>虚拟目录</h3><ul>')
@@ -743,7 +790,8 @@ class FileServerHandler(BaseHTTPRequestHandler):
                     physical_path = dir_info.get('physical_path', '')
                     if not virtual_path.startswith('/'):
                         virtual_path = '/' + virtual_path
-                    content.append(f'<li><a href="{virtual_path}">{virtual_path} → {physical_path}</a></li>')    
+                    #content.append(f'<li><a href="{virtual_path}">{virtual_path} → {physical_path}</a></li>')    
+                    content.append(f'<li><a href="{virtual_path}">{virtual_path}</a></li>')    
 
                 content.append('</ul></div>')
 

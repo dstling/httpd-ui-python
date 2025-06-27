@@ -32,14 +32,47 @@ class FileUploadHandler(http.server.SimpleHTTPRequestHandler):
     
     def do_POST(self):
         self.request.settimeout(300)  # 5 minutes timeout
-
         print(f"[DEBUG] do_POST() called from upload.py")
+        
+        # 初始化重定向路径变量
+        redirect_path = '/'  # 默认重定向到根目录
+        
         try:
             content_length = int(self.headers.get('Content-Length', 0))
             content_type = self.headers.get('Content-Type')
             
-            # 读取原始二进制数据
-            post_data = self.rfile.read(content_length)
+            # 初始化进度变量
+            total_received = 0
+            last_reported_percent = -1
+            post_data = b''
+            
+            # 分块读取数据并报告进度
+            chunk_size = 64 * 1024*1024 #64 * 1024  # 64KB 分块
+            while total_received < content_length:
+                to_read = min(chunk_size, content_length - total_received)
+                try:
+                    chunk = self.rfile.read(to_read)
+                    # 检查连接是否关闭
+                    if not chunk:
+                        print(f"[UPLOAD] Client disconnected during upload,total_received:{total_received},content_length:{content_length}")
+                        return
+                except (ConnectionAbortedError, ConnectionResetError, ValueError) as e:
+                    print(f"[UPLOAD] Read error: {str(e)},total_received:{total_received},content_length:{content_length}")
+                    return
+                    
+                post_data += chunk
+                total_received += len(chunk)
+                
+                # 报告进度（每5%报告一次）
+                current_percent = int((total_received / content_length) * 100)
+                if current_percent > last_reported_percent and current_percent % 5 == 0:
+                    # 调用正确的进度报告方法
+                    self._report_progress(total_received, content_length)
+                    last_reported_percent = current_percent
+            
+            # 确保报告100%进度
+            if total_received > 0:
+                self._report_progress(total_received, content_length)
             
             # 解析消息
             msg = BytesParser(policy=policy.default).parsebytes(
@@ -53,6 +86,9 @@ class FileUploadHandler(http.server.SimpleHTTPRequestHandler):
                 if 'form-data' in cd and part.get_param('name') == 'target_path':
                     target_path = part.get_content()
                     break
+            
+            # 保存重定向路径
+            redirect_path = target_path
             
             # 准备上传目录
             upload_dir = self.translate_path(target_path)
@@ -74,29 +110,11 @@ class FileUploadHandler(http.server.SimpleHTTPRequestHandler):
                     # 获取二进制内容
                     file_content = file_item.get_payload(decode=True)
                     
-                    start_time = time.time()
-                    total_size = 0
-                    chunk_size = 64 * 1024  # 64KB 分块
-                    
                     # 写入文件
                     with open(dest_path, 'wb') as dest_file:
-                        # 分块处理二进制数据
-                        for i in range(0, len(file_content), chunk_size):
-                            chunk = file_content[i:i+chunk_size]
-                            dest_file.write(chunk)
-                            total_size += len(chunk)
-                            
-                            # 计算进度
-                            progress = (total_size / len(file_content)) * 100
-                            elapsed = time.time() - start_time
-                            speed = total_size / (1024 * 1024 * elapsed) if elapsed > 0 else 0
-                            print(f"[UPLOAD PROGRESS] {filename}: {progress:.1f}% | "
-                                  f"Speed: {speed:.2f} MB/s | "
-                                  f"Size: {total_size/(1024*1024):.2f}/{len(file_content)/(1024*1024):.2f} MB")
-
+                        dest_file.write(file_content)
+                    
                     # 成功响应 - 重定向到文件目录
-                    # 计算重定向路径（当前请求路径的父目录）
-                    redirect_path = target_path  #os.path.dirname(self.path)
                     if not redirect_path.endswith('/'):
                         redirect_path += '/'
                         
@@ -122,7 +140,7 @@ class FileUploadHandler(http.server.SimpleHTTPRequestHandler):
                                         text-align: center;
                                         z-index: 10000;
                                     ">
-                                        <p>文件上传成功 ({total_size/(1024*1024):.2f}MB)</p>
+                                        <p>文件上传成功 ({len(file_content)/(1024*1024):.2f}MB)</p>
                                         <button onclick="closeNotification()" style="
                                             padding: 8px 16px;
                                             background: #007bff;
@@ -176,11 +194,16 @@ class FileUploadHandler(http.server.SimpleHTTPRequestHandler):
             error_msg = f"Upload failed: {str(e)}"
             print(f"[UPLOAD ERROR] {error_msg}")
             
-            # 错误响应 - 同样重定向到文件目录
-            redirect_path = target_path #os.path.dirname(self.path)
+            # 确保重定向路径有效
+            if not redirect_path:
+                redirect_path = '/'
             if not redirect_path.endswith('/'):
                 redirect_path += '/'
-                
+
+            # 修复响应头中的中文问题
+            self.send_response(HTTPStatus.INTERNAL_SERVER_ERROR)
+            self.send_header("Content-type", "text/html; charset=utf-8")  # 移除中文前缀
+
             response_content = f"""
             <!DOCTYPE html>
             <html>
@@ -198,7 +221,7 @@ class FileUploadHandler(http.server.SimpleHTTPRequestHandler):
                                 background: white;
                                 padding: 20px;
                                 border-radius: 8px;
-                                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                                box-shadow: 0 4px 12px rgba极客时间
                                 text-align: center;
                                 z-index: 10000;
                                 color: #d9534f;
@@ -233,7 +256,7 @@ class FileUploadHandler(http.server.SimpleHTTPRequestHandler):
             </html>
             """
             self.send_response(HTTPStatus.INTERNAL_SERVER_ERROR)
-            self.send_header("Content-type", "text/html; charset=utf-8")
+            self.send_header("Content-type", "极客时间text/html; charset=utf-8")
 
             self.send_header("Connection", "close")
             self.send_header("Vary", "Accept-Encoding")
@@ -243,3 +266,4 @@ class FileUploadHandler(http.server.SimpleHTTPRequestHandler):
             
             self.end_headers()
             self.wfile.write(response_content.encode('utf-8'))
+

@@ -3,11 +3,15 @@
     "listen_port": 8000,
     "virtual_directories": {
         "/": {
-            "physical_path": "/home/user/Downloads/python-pro/httpd-ui-test",
+            "physical_path": "C:/Users/Administrator/Desktop/python-pro",
             "allow_anonymous": false
+        },
+        "/download": {
+            "physical_path": "E:/\u8fc5\u96f7\u4e0b\u8f7d",
+            "allow_anonymous": true
         }
     },
     "enable_authentication": false,
     "auth_username": "admin",
-    "auth_password": "f980f3ec5e7007662ee362f4481c12b109386294c6e3691795bccc71e4090967:093937160f08e540bcecc89870a835a7"
+    "auth_password": "f13514f045277527a1841e82cd7270ffcbb113fc5561f5fa2da3301c3f5db33d:d40812da1ff81b1d6f3155a4b6129bcd"
 }

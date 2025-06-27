@@ -1,0 +1,15 @@
+2025-06-27 15:20:53> 已从配置加载: 2 个虚拟目录
+2025-06-27 15:20:54> 服务器已启动: http://0.0.0.0:8000
+2025-06-27 15:20:55> 服务器启动(多线程模式): http://0.0.0.0:8000
+2025-06-27 15:20:55> 根目录: C:/Users/Administrator/Desktop/python-pro
+2025-06-27 15:21:01> 192.168.100.4:51826- "GET / HTTP/1.1" 200 -
+2025-06-27 15:21:02> 192.168.100.4:51826- "GET /login HTTP/1.1" 200 -
+2025-06-27 15:21:03> 192.168.100.4:51827- "POST /login HTTP/1.1" 302 -
+2025-06-27 15:21:03> 192.168.100.4:51827- 用户认证成功，用户名admin,session:d76673c4fc7aaded73566379321dbb36
+2025-06-27 15:21:03> 192.168.100.4:51833- "GET / HTTP/1.1" 200 -
+2025-06-27 15:21:06> 192.168.100.4:51837- "POST /upload HTTP/1.1" 500 -
+2025-06-27 15:21:06> 192.168.100.4:51837- code 500, message Upload processing failed: 'latin-1' codec can't encode characters in position 14-17: ordinal not in range(256)
+2025-06-27 15:21:06> 192.168.100.4:51837- "POST /upload HTTP/1.1" 500 -
+2025-06-27 15:21:10> 192.168.100.4:51846- "POST /upload HTTP/1.1" 500 -
+2025-06-27 15:21:10> 192.168.100.4:51846- code 500, message Upload processing failed: 'latin-1' codec can't encode characters in position 14-17: ordinal not in range(256)
+2025-06-27 15:21:10> 192.168.100.4:51846- "POST /upload HTTP/1.1" 500 -
