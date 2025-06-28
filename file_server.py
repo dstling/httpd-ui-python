@@ -29,6 +29,10 @@ class FileServer:
         self.server_version="V15"
         self.server_by="dstling Email:xingxing5914@163.com"
 
+        self.next_id = 1  # 下一个可用的唯一ID
+        self.logined_datas = []  # 登录用户数据集
+        self.logined_lock = threading.Lock()  # 添加线程锁保证线程安全
+
         self.listen_address = '0.0.0.0'
         self.listen_port = 8000
 
@@ -238,6 +242,59 @@ class FileServer:
             print(f"remove_virtual_directory2 {virtual_path}")
             del self.virtual_directories[virtual_path]
             self.save_config()
+
+    def add_logined_user(self, ip, username, session_id):
+        """添加登录用户记录"""
+        with self.logined_lock:
+            login_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            self.logined_datas.append({
+                'id': self.next_id,
+                'ip': ip,
+                'username': username,
+                'session_id': session_id,
+                'login_time': login_time
+            })
+            self.next_id += 1
+            print(f"[Auth] Added login record: {username} from {ip}, session_id: {session_id},login_time: {login_time}")
+    
+    def remove_logined_user(self, session_id):
+        """根据session_id移除登录用户记录"""
+        with self.logined_lock:
+            initial_count = len(self.logined_datas)
+            self.logined_datas = [item for item in self.logined_datas 
+                                 if item['session_id'] != session_id]
+            if len(self.logined_datas) < initial_count:
+                print(f"[Auth] Removed login record for session_id: {session_id}")
+    
+    def query_logined_user(self, session_id):
+        """根据session_id查询登录用户信息"""
+        with self.logined_lock:
+            for item in self.logined_datas:
+                if item['session_id'] == session_id:
+                    return item
+            return None
+
+    def get_all_logined_users(self):
+        """获取所有登录用户数据"""
+        with self.logined_lock:
+            return self.logined_datas.copy()  # 返回副本避免直接操作原始数据
+    
+    def remove_session(self, session_id):
+        """强制下线指定用户"""
+        with self.logined_lock:
+            # 从登录记录中移除
+            initial_count = len(self.logined_datas)
+            self.logined_datas = [item for item in self.logined_datas 
+                                 if item['session_id'] != session_id]
+            
+            # 从有效会话中移除
+            if session_id in self.valid_sessions:
+                self.valid_sessions.remove(session_id)
+                
+            if len(self.logined_datas) < initial_count:
+                print(f"[Auth] 强制下线用户 session_id: {session_id}")
+                return True
+        return False
     def restart(self):
         """Safely restart the server"""
         if self.running:

@@ -121,7 +121,9 @@ class ServerManagerApp:
         self.start_btn = ttk.Button(btn_frame, text="启动服务器", command=self.start_server, width=15)
         self.start_btn.pack(side=tk.LEFT, padx=5)
         self.stop_btn = ttk.Button(btn_frame, text="停止服务器", command=self.stop_server, width=15, state=tk.DISABLED)
-        self.stop_btn.pack(side=tk.LEFT, padx=5)
+        self.stop_btn.pack(side=tk.LEFT, padx=5)        
+        self.query_logined_btn = ttk.Button(btn_frame, text="查询登录用户", command=self.query_logined, width=15)
+        self.query_logined_btn.pack(side=tk.LEFT, padx=5)
 
         status_info_frame = ttk.Frame(status_frame)
         status_info_frame.pack(fill=tk.X)
@@ -411,6 +413,114 @@ class ServerManagerApp:
         # 创建保存和取消按钮（修正位置）
         ttk.Button(button_frame, text="保存", command=save_changes, width=10).pack(side=tk.LEFT, padx=10)
         ttk.Button(button_frame, text="取消", command=dialog.destroy, width=10).pack(side=tk.LEFT, padx=10)
+
+    def query_logined(self):
+        """查询并显示所有登录用户"""
+        # 创建新窗口
+        login_window = tk.Toplevel(self.root)
+        login_window.title("登录用户管理")
+        login_window.geometry("800x400")
+        
+        login_window.transient(self.root)
+        login_window.update_idletasks()  # 确保窗口布局完成
+        login_window.wait_visibility()   # 等待窗口可见
+        #login_window.grab_set()
+        
+        # 创建框架
+        main_frame = ttk.Frame(login_window, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 添加操作按钮（移到Treeview上方）
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.pack(fill=tk.X, pady=10, side=tk.TOP)  # 修改为顶部布局
+        
+        ttk.Button(
+            btn_frame, 
+            text="刷新列表", 
+            command=lambda: self.update_login_list(login_window),
+            width=15
+        ).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(
+            btn_frame, 
+            text="强制下线", 
+            command=lambda: self.force_logout(login_window),
+            width=15
+        ).pack(side=tk.LEFT, padx=5)
+        
+        # 创建Treeview显示登录用户（放在按钮下方）
+        columns = ("id", "username", "ip", "session_id", "login_time")
+        self.login_tree = ttk.Treeview(
+            main_frame, 
+            columns=columns, 
+            show="headings",
+            selectmode="browse"
+        )
+        
+        # 设置列标题
+        self.login_tree.heading("id", text="ID")
+        self.login_tree.heading("username", text="用户名")
+        self.login_tree.heading("ip", text="IP地址")
+        self.login_tree.heading("session_id", text="会话ID")
+        self.login_tree.heading("login_time", text="登录时间")
+        
+        # 设置列宽
+        self.login_tree.column("id", width=25, anchor=tk.CENTER)
+        self.login_tree.column("username", width=80, anchor=tk.CENTER)
+        self.login_tree.column("ip", width=120, anchor=tk.CENTER)
+        self.login_tree.column("session_id", width=240)
+        self.login_tree.column("login_time", width=150, anchor=tk.CENTER)
+        
+        # 添加滚动条
+        scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=self.login_tree.yview)
+        self.login_tree.configure(yscroll=scrollbar.set)
+        
+        # 布局（Treeview放在按钮下方）
+        self.login_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # 初始加载数据
+        self.update_login_list(login_window)
+        
+    def update_login_list(self, window):
+        """更新登录用户列表"""
+        # 清空现有数据
+        for item in self.login_tree.get_children():
+            self.login_tree.delete(item)
+        
+        # 获取最新登录数据
+        users = self.file_server.get_all_logined_users()
+        
+        # 添加数据到Treeview
+        for user in users:
+            self.login_tree.insert("", "end", values=(
+                user['id'],
+                user['username'],
+                user['ip'],
+                user['session_id'],
+                user['login_time']
+            ))
+        
+        # 更新窗口标题显示用户数量
+        window.title(f"登录用户管理 (共 {len(users)} 个用户)")
+        
+    def force_logout(self, window):
+        """强制选中的用户下线"""
+        selected = self.login_tree.selection()
+        if not selected:
+            messagebox.showwarning("操作提示", "请先选择一个用户")
+            return
+            
+        item = self.login_tree.item(selected[0])
+        values = item['values']
+        session_id = values[3]  # session_id在第四列
+        
+        if self.file_server.remove_session(session_id):
+            self.log(f"已强制下线用户: {values[1]} (ID: {values[0]})")
+            self.update_login_list(window)
+            messagebox.showinfo("操作成功", f"用户 {values[1]} 已被强制下线")
+        else:
+            messagebox.showerror("操作失败", "未能找到该用户的会话信息")
 
     def start_server(self):
         try:

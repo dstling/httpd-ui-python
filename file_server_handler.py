@@ -101,6 +101,10 @@ class FileServerHandler(BaseHTTPRequestHandler):
                 with self.session_lock:
                     self.valid_sessions.add(session_id)
                 
+                client_ip = self.client_address[0]
+                # 调用FileServer的记录方法
+                self.server_instance.add_logined_user(client_ip, username, session_id)
+            
                 # 设置 Cookie 并重定向到首页 发送给客户端浏览器
                 self.send_response(302)
                 self.send_header('Location', '/')
@@ -179,7 +183,10 @@ class FileServerHandler(BaseHTTPRequestHandler):
                 if session_id and session_id in self.valid_sessions:
                     self.valid_sessions.remove(session_id)
                     print(f"[Auth] Removed session: {session_id}")
-                    #self.log(f"用户{self.username}退出登录,Removed session: {session_id}")
+
+                    # 调用FileServer的移除方法
+                    self.server_instance.remove_logined_user(session_id)
+
                     self.log_message(f"用户退出登录,Removed session: {session_id}")
         
         # 发送重定向到登录页面
@@ -356,12 +363,13 @@ class FileServerHandler(BaseHTTPRequestHandler):
         self.send_header('Location', '/login')
         self.end_headers()
         return
-    # 添加进度报告方法（与类名一致）
-    def _report_progress(self, current, total):
+    
+    def _report_progress(self, current, total):# 添加进度报告方法（与类名一致）
         """报告上传进度"""
         percent = int((current / total) * 100)
         print(f"[UPLOAD PROGRESS] {percent}%")
         return percent
+    
     def handle_upload(self):
         """专门处理上传请求"""
         print("[UPLOAD] Handling file upload request")
@@ -377,7 +385,6 @@ class FileServerHandler(BaseHTTPRequestHandler):
             else:
                 error_msg = f"Upload processing failed: {str(e)}"
                 print(f"[UPLOAD ERROR] {error_msg}")
-            
             # 发送纯英文错误消息避免编码问题
             self.send_error(500, "Internal server error during upload")
 
