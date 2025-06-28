@@ -1,7 +1,10 @@
 # httpd-ui-python
 #How to run
-cd /path/to/httpd-ui-python
-python3 server_ui.py
+1.安装python3
+2.clone本代码
+3.cd /path/to/httpd-ui-python
+4.python3 server_ui.py
+
 
 First run, this programe will create default json config file:server_config.json
 In the default UI of the program, you can set the root directory and 
