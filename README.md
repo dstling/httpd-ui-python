@@ -16,3 +16,6 @@ In the default UI of the program, you can set the root directory and
 virtual directory, save, and restart. The default username is admin, 
 and the password is admin123456. 
 You can modify this setting in the UI.
+
+
+![登录界面截图](pic/主界面.png)
