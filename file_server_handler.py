@@ -959,7 +959,7 @@ class FileServerHandler(BaseHTTPRequestHandler):
                 with open(physical_path, 'rb') as file:
                     file.seek(start)
                     remaining = end - start + 1
-                    buffer_size = 1024 * 1024 *1 # 8MB缓冲区
+                    buffer_size = 1024 * 1024 *64 # 8MB缓冲区
                     
                     while remaining > 0:
                         chunk_size = min(buffer_size, remaining)
