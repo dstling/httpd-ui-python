@@ -31,3 +31,6 @@ You can modify this setting in the UI.
 
 5.登录后主页面(浏览器)
 ![登录后主页面](pic/登录后主页面.png)
+
+6.支持一下，感谢你的爱^_^
+![支持一下](pic/支持一下.png)
