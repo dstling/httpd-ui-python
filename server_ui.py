@@ -10,7 +10,12 @@ from file_server import FileServer  # 导入服务模块
 class ServerManagerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("文件服务器管理（支持虚拟目录）")
+        # 初始化文件服务器实例
+        self.file_server = FileServer() #从这里开始初始化
+        self.file_server.set_log_callback(self.log)  #设置日志回调 file_server可以使用日志输出到界面
+
+        #self.root.title(f"文件服务器管理（支持虚拟目录）")
+        self.root.title(f"{self.file_server.server_name}-{self.file_server.server_version} powered by:{self.file_server.server_by}")
         self.root.geometry("700x850")
         self.root.resizable(True, True)
 
@@ -24,10 +29,6 @@ class ServerManagerApp:
 
         # 设置中文字体
         self.setup_fonts()
-
-        # 初始化文件服务器实例
-        self.file_server = FileServer() #从这里开始初始化
-        self.file_server.set_log_callback(self.log)  #设置日志回调 file_server可以使用日志输出到界面
 
         # 虚拟目录配置
         self.virtual_dirs = {}
@@ -57,6 +58,7 @@ class ServerManagerApp:
         self.username_var.set(self.file_server.auth_username)
         #self.password_var.set(self.file_server.auth_password)
         self.password_var.set("")  # Clear password field
+        self.logined_timeout_var.set(self.file_server.logined_timeout)  # Clear password field
 
         self.log(f"已从配置加载: {len(self.virtual_dirs)} 个虚拟目录")
 
@@ -105,12 +107,19 @@ class ServerManagerApp:
         ttk.Label(user_frame, text="密   码:", font=self.default_font).grid(row=0, column=2, sticky=tk.W, padx=5)
         self.password_var = tk.StringVar()
         ttk.Entry(user_frame, textvariable=self.password_var, width=20, font=self.default_font, show="*").grid(row=0, column=3, sticky=tk.W, padx=5)
-        
+
+        timeout_clear_frame = ttk.Frame(config_frame)
+        timeout_clear_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(timeout_clear_frame, text="超时清理:", font=self.default_font).grid(row=0, column=0, sticky=tk.W, padx=5)
+        self.logined_timeout_var = tk.StringVar()
+        ttk.Entry(timeout_clear_frame, textvariable=self.logined_timeout_var, width=5, font=self.default_font).grid(row=0, column=1, sticky=tk.W, padx=5)
+        ttk.Label(timeout_clear_frame, text="分钟", font=self.default_font).grid(row=0, column=2, sticky=tk.W, padx=5)
+
         # 启用访问鉴权选择
         auth_button_frame = ttk.Frame(config_frame)
         auth_button_frame.pack(fill=tk.X, pady=5)
         self.auth_checkbtn = ttk.Checkbutton(auth_button_frame, text="启用访问鉴权(当前版本无需设置)", variable=self.auth_var).grid(row=0, column=0, sticky=tk.W, padx=5)
-        ttk.Button(auth_button_frame, text="保存设置", command=self.save_auth_settings, width=15).grid(row=0, column=1, sticky=tk.W, padx=5)
+        ttk.Button(auth_button_frame, text="保存设置", command=self.save_server_settings, width=15).grid(row=0, column=1, sticky=tk.W, padx=5)
 
         # 状态区域
         status_frame = ttk.LabelFrame(main_frame, text="服务器状态", padding="10")
@@ -266,20 +275,25 @@ class ServerManagerApp:
                 self.vdir_tree.insert("", "end", values=(virtual, physical_path, "是" if allow_anonymous else "否"))
                 
         self.vdir_tree.tag_configure('root', background="#e6a9a9")
-    def save_auth_settings(self):
+    def save_server_settings(self):
         """保存鉴权设置到文件服务器"""
         username = self.username_var.get()
         password = self.password_var.get()
+        logined_timeout = self.logined_timeout_var.get()
         enable_authentication = self.auth_var.get()
+        if not logined_timeout:
+            logined_timeout = 1
+        self.file_server.set_logined_timeout(logined_timeout)
 
         if not username:
             messagebox.showwarning("输入错误", "用户名不能为空")
             return
-        if not password:#仅保存是否启用鉴权功能
-            self.file_server.set_authentication(enable_authentication)
-            print(f"鉴权设置已更新 enable_authentication:{enable_authentication}")
-            self.log(f"鉴权设置已更新 enable_authentication:{enable_authentication}")
-            return
+        if False:
+            if not password:#仅保存是否启用鉴权功能
+                self.file_server.set_authentication(enable_authentication)
+                print(f"鉴权设置已更新 enable_authentication:{enable_authentication}")
+                self.log(f"鉴权设置已更新 enable_authentication:{enable_authentication}")
+                return
         if username and password:    
             self.file_server.set_auth_credentials(username, password)
             self.file_server.set_authentication(enable_authentication)

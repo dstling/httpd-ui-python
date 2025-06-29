@@ -3,7 +3,7 @@
     "listen_port": 8000,
     "virtual_directories": {
         "/": {
-            "physical_path": "C:/Users/dstling-i5-6500/Desktop/python-pro",
+            "physical_path": "C:/Users/Administrator/Desktop/python-pro",
             "allow_anonymous": false
         },
         "/download": {
@@ -13,5 +13,6 @@
     },
     "enable_authentication": false,
     "auth_username": "admin",
-    "auth_password": "b03dcba73dccfc8fb91f20940e25410fb9ac4ebb12984f3149a7c7eab8567b44:d65bab176620e47b2f4678a83e1b8c13"
+    "auth_password": "b03dcba73dccfc8fb91f20940e25410fb9ac4ebb12984f3149a7c7eab8567b44:d65bab176620e47b2f4678a83e1b8c13",
+    "logined_timeout": "10"
 }
