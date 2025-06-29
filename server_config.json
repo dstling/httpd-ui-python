@@ -7,7 +7,7 @@
             "allow_anonymous": false
         },
         "/download": {
-            "physical_path": "E:/\u8fc5\u96f7\u4e0b\u8f7d",
+            "physical_path": "/home/user/\u8fc5\u96f7\u4e0b\u8f7d",
             "allow_anonymous": true
         }
     },
