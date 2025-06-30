@@ -1,5 +1,5 @@
 # httpd-ui-python
-#How to run 如何运行
+#一、How to run 如何运行
 
 1.安装python3
 
@@ -9,13 +9,20 @@
 
 4.python3 main.py
 
-#windows系统运行
+#二、windows系统运行
 
 1.安装python3
 
 2.直接点击winStart.bat运行，无cmd窗口显示
 
 或者点击cmdStart.bat运行，有cmd窗口显示
+
+
+#三、Linux系统无界面运行
+
+需要自行仿照server_config.json编写配置文件，运行file_server.py
+
+python3 file_server.py
 
 #程序使用介绍
 First run, this programe will create default json config file:server_config.json
