@@ -10,10 +10,11 @@
 4.python3 main.py
 
 #windows系统运行
+1.安装python3
 
-1.直接点击winStart.bat运行，无cmd窗口显示
+2.直接点击winStart.bat运行，无cmd窗口显示
 
-2.点击cmdStart.bat运行，有cmd窗口显示
+或者点击cmdStart.bat运行，有cmd窗口显示
 
 #程序使用介绍
 First run, this programe will create default json config file:server_config.json
