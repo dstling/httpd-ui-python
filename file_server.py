@@ -27,7 +27,7 @@ class FileServer:
         print('Initializing File Server...')
         self.config_file = 'server_config.json'
         self.server_name="高级文件服务器"
-        self.server_version="V16"
+        self.server_version="V17"
         self.server_by="dstling Email:xingxing5914@163.com"
 
         self.next_id = 1  # 下一个可用的唯一ID
@@ -254,7 +254,7 @@ class FileServer:
         try:
             with urllib.request.urlopen(full_url) as response:
                 str=response.read().decode('utf-8')
-                print("服务器响应:",str )
+                #print("服务器响应:",str )
             return True
         except Exception as e:
             return False
