@@ -2,6 +2,7 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 import os
+import platform
 import threading
 import socket
 from datetime import datetime
@@ -41,6 +42,170 @@ class ServerManagerApp:
 
         # 从配置加载数据至界面
         self.load_config_data()
+
+        self.tray_thread=None
+        self.setup_tray_icon()  # 新增初始化
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)  # 修改为新的关闭处理方法
+
+    def setup_tray_icon(self):
+        """初始化系统托盘图标"""
+        system = platform.system()
+        
+        if system == "Windows":
+            self.setup_windows_tray()
+        elif system == "Darwin":
+            self.setup_macos_tray()
+        else:  # Linux
+            self.setup_linux_tray()
+
+    def setup_windows_tray(self):
+        """Windows 托盘实现（使用pystray）"""
+        try:
+            import pystray
+            from PIL import Image
+            
+            # 获取当前脚本所在目录
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            icon_path = os.path.join(base_dir, "icon.ico")
+            
+            if not os.path.exists(icon_path):
+                self.log(f"警告: 托盘图标文件不存在: {icon_path}")
+                print("警告: 托盘图标文件不存在:", icon_path)
+                # 创建临时空白图标
+                image = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+            else:
+                image = Image.open(icon_path)
+            
+            menu = pystray.Menu(
+                pystray.MenuItem("显示窗口", self.show_window),
+                pystray.MenuItem("隐藏至托盘区", self.hide_to_tray),
+                pystray.MenuItem("退出程序", self.quit_app)
+            )
+            
+            self.tray = pystray.Icon("FileServer", image, menu=menu)
+            
+            # 启动托盘线程（非守护线程）
+            self.tray_thread = threading.Thread(target=self.tray.run)
+            self.tray_thread.daemon = True  # 主线程退出时不会强制结束
+            self.tray_thread.start()
+            
+            self.log("Windows托盘图标已启动")
+            
+        except ImportError:
+            self.log("警告：未安装pystray，无法使用系统托盘")
+        except Exception as e:
+            self.log(f"托盘初始化失败: {str(e)}")
+    def show_tray_menu(self, event):
+        """显示托盘菜单"""
+        self.tray_menu.post(event.x_root, event.y_root)
+
+    def setup_macos_tray(self):
+        """macOS 托盘实现"""
+        try:
+            import rumps
+            class MacTrayApp(rumps.App):
+                def __init__(self, parent):
+                    super().__init__("FileServer", icon="icon.png")
+                    self.parent = parent
+                    self.menu = ["显示窗口", "退出"]
+                
+                @rumps.clicked("显示窗口")
+                def show_window(self, _):
+                    self.parent.show_window()
+                
+                @rumps.clicked("退出")
+                def quit_app(self, _):
+                    self.parent.quit_app()
+            
+            self.tray_app = MacTrayApp(self)
+            threading.Thread(target=self.tray_app.run).start()
+        except ImportError:
+            self.log("警告：未安装rumps，无法使用系统托盘")
+
+    def setup_linux_tray(self):
+        """Linux 托盘实现"""
+        try:
+            import pystray
+            from PIL import Image
+            
+            image = Image.open("icon.png")
+            menu = pystray.Menu(
+                pystray.MenuItem("显示窗口", self.show_window),
+                pystray.MenuItem("退出", self.quit_app)
+            )
+            self.tray = pystray.Icon("FileServer", image, menu=menu)
+            threading.Thread(target=self.tray.run).start()
+        except ImportError:
+            self.log("警告：未安装pystray，无法使用系统托盘")
+
+    def show_tray_notification(self, title, message):
+        """显示托盘通知"""
+        if hasattr(self, 'tray_notification'):
+            try:
+                self.tray_notification.update(title=title, msg=message)
+                self.tray_notification.show()
+            except Exception as e:
+                self.log(f"通知发送失败: {str(e)}")
+    def show_window(self):
+        """从托盘恢复窗口"""
+        self.root.deiconify()
+        self.root.lift()
+
+    def hide_to_tray(self):
+        """隐藏到托盘"""
+        self.root.withdraw()
+        
+    # 添加新的关闭处理方法
+    def on_close(self):
+        """处理窗口关闭事件"""
+        choice = messagebox.askyesnocancel(
+            "关闭程序",
+            "请选择操作：\n\n"
+            "• '是': 隐藏到托盘\n"
+            "• '否': 退出程序\n"
+            "• '取消': 返回程序",
+            icon='question'
+        )
+        
+        if choice is None:  # 用户点击"取消"
+            return
+        elif choice:  # 用户点击"是" - 隐藏到托盘
+            self.hide_to_tray()
+        else:  # 用户点击"否" - 退出程序
+            self.quit_app()        
+    def quit_app(self):
+        """退出程序"""
+        # 添加退出确认
+        #if not messagebox.askyesno("确认退出", "确定要退出文件服务器吗？"):
+        #    return
+        
+        # 添加日志记录
+        self.log("开始退出程序...")
+        
+        # 停止服务器
+        self.stop_server()
+        
+        # 停止托盘图标（Windows/Linux）
+        if hasattr(self, 'tray'):
+            try:
+                self.log("正在停止托盘图标...")
+                self.tray.stop()  # 停止托盘图标
+                self.log("托盘图标已停止")
+            except Exception as e:
+                self.log(f"停止托盘时出错: {str(e)}")
+
+        # 销毁主窗口
+        if self.root:
+            try:
+                self.log("正在关闭主窗口...")
+                self.root.quit()  # 停止主事件循环
+                self.root.destroy()  # 销毁主窗口
+            except Exception as e:
+                print(f"关闭主窗口时出错: {str(e)}")
+        
+        # 强制退出程序（确保完全退出）
+        print("程序完全退出")
+        os._exit(0)  # 强制终止进程
 
     def load_config_data(self):
         """从配置加载数据到UI"""
@@ -134,6 +299,11 @@ class ServerManagerApp:
         self.query_logined_btn = ttk.Button(btn_frame, text="查询登录用户", command=self.query_logined, width=15)
         self.query_logined_btn.pack(side=tk.LEFT, padx=5)
 
+    
+        # +++ 添加隐藏到托盘按钮 +++
+        self.hide_btn = ttk.Button(btn_frame, text="隐藏到托盘", command=self.hide_to_tray, width=15)
+        self.hide_btn.pack(side=tk.LEFT, padx=5)
+
         status_info_frame = ttk.Frame(status_frame)
         status_info_frame.pack(fill=tk.X)
         ttk.Label(status_info_frame, text="当前状态:", font=self.default_font).grid(row=0, column=0, sticky=tk.W, padx=5)
@@ -183,6 +353,8 @@ class ServerManagerApp:
         self.log_text.config(state=tk.DISABLED)
 
         self.setup_log_copy()
+        
+        self.root.protocol("WM_DELETE_WINDOW", self.hide_to_tray) 
 
     def setup_log_copy(self):
         """设置日志文本框的复制功能"""
@@ -555,6 +727,9 @@ class ServerManagerApp:
             self.start_btn.config(state=tk.DISABLED)
             self.stop_btn.config(state=tk.NORMAL)
             self.log(f"服务器已启动: http://{self.address_var.get()}:{self.port_var.get()}")
+            
+            self.show_tray_notification("服务器已启动", f"访问地址: http://{self.address_var.get()}:{self.port_var.get()}")
+    
         except Exception as e:
             messagebox.showerror("启动错误", f"无法启动服务器: {str(e)}")
             self.log(f"启动失败: {str(e)}")
@@ -567,6 +742,8 @@ class ServerManagerApp:
             self.start_btn.config(state=tk.NORMAL)
             self.stop_btn.config(state=tk.DISABLED)
             self.log("服务器已停止")
+            self.show_tray_notification("服务器已停止", "文件服务器已关闭")
+
         except Exception as e:
             messagebox.showerror("停止错误", f"无法停止服务器: {str(e)}")
             self.log(f"停止失败: {str(e)}")

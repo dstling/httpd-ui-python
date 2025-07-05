@@ -17,7 +17,7 @@ if %errorlevel% neq 0 (
 )
 
 :: Run the server_ui.py script
-python server_ui.py
+python main.py
 
 :: Keep the console window open after execution
 pause

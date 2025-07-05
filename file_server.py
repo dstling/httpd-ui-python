@@ -27,7 +27,7 @@ class FileServer:
         print('Initializing File Server...')
         self.config_file = 'server_config.json'
         self.server_name="高级文件服务器"
-        self.server_version="V16"
+        self.server_version="V17"
         self.server_by="dstling Email:xingxing5914@163.com"
 
         self.next_id = 1  # 下一个可用的唯一ID
@@ -60,6 +60,10 @@ class FileServer:
             self.save_config()
 
         self.root_directory = self.get_root_directory()
+
+        interface_cmd_thread = threading.Thread(target=self.interface_cmd_task, daemon=True)
+        interface_cmd_thread.start() #无窗口模式下的参数设置窗口
+
 
     def set_log_callback(self, callback):
         self.log_callback = callback
@@ -254,7 +258,7 @@ class FileServer:
         try:
             with urllib.request.urlopen(full_url) as response:
                 str=response.read().decode('utf-8')
-                print("服务器响应:",str )
+                #print("服务器响应:",str )
             return True
         except Exception as e:
             return False
@@ -365,6 +369,125 @@ class FileServer:
                 print(f"[Auth] 强制下线用户 session_id: {session_id}")
                 return True
         return False
+
+    def interface_cmd_task(self):#接口命令处理，用于未启动界面，在cmd模式下的参数设置
+        while True:
+            print("-----------------------------------------------")
+            print("0. 查看服务运行状态")
+            print("1. 启动服务")
+            print("2. 停止服务")
+            print("3. 重启服务")
+            print("4. 更改用户名和密码")
+            print("5. 添加虚拟目录")
+            print("6. 删除虚拟目录")
+            print("7. 退出程序")
+            print("-----------------------------------------------")
+            
+            choice = input("请选择操作 (0-7,回车重新显示菜单): ").strip()
+            if choice == '0':  # 查看服务运行状态
+                status = "运行中" if self.running else "已停止"
+                print(f"\n服务器状态: {status}")
+                print(f"监听地址: {self.listen_address}")
+                print(f"监听端口: {self.listen_port}")
+                print(f"根目录: {self.get_root_directory()}")
+                print(f"虚拟目录数量: {len(self.virtual_directories) - 1}")  # 减去根目录
+                print(f"鉴权状态: {'启用' if self.enable_authentication else '禁用'}")
+                print(f"登录超时: {self.logined_timeout} 分钟")
+            elif choice == '1':  # 启动服务
+                if self.running:
+                    print("服务器已在运行中")
+                else:
+                    self.start()
+                    print("服务器已启动")
+                    
+            elif choice == '2':  # 停止服务
+                if self.running:
+                    self.stop()
+                    print("服务器已停止")
+                else:
+                    print("服务器未运行")
+                    
+            elif choice == '3':  # 重启服务
+                if self.running:
+                    self.restart()
+                    print("服务器已重启")
+                else:
+                    print("服务器未运行，无法重启")
+                    
+            elif choice == '4':  # 更改用户名和密码
+                username = input(f"请输入新用户名(当前用户名：{self.auth_username}): ").strip()
+                password = input("请输入新密码: ").strip()
+                
+                if not username:
+                    username=self.auth_username
+                
+                if not password:
+                    print("密码不能为空")
+                else:
+                    self.set_auth_credentials(username, password)
+                    print(f"用户名和密码已更新为: {username}:{password}")
+            elif choice == '5':  # 添加虚拟目录
+                virtual_path = input("请输入虚拟路径 (例如: /docs;输入0返回上级菜单): ").strip()
+                if virtual_path == '0':
+                    continue                
+                if not virtual_path:
+                    print("虚拟路径不能为空")
+                    continue
+                    
+                if not virtual_path.startswith('/'):
+                    virtual_path = '/' + virtual_path
+                    
+                if virtual_path == '/':
+                    print("根目录已存在，不能添加")
+                    continue
+                    
+                physical_path = input("请输入物理路径 (绝对路径): ").strip()
+                if not physical_path:
+                    print("物理路径不能为空")
+                    continue
+                    
+                if not os.path.exists(physical_path):
+                    print(f"物理路径不存在: {physical_path}")
+                    continue
+                    
+                allow_anonymous = input("允许匿名访问? (y/n): ").strip().lower() == 'y'
+                self.add_virtual_directory(virtual_path, os.path.abspath(physical_path), allow_anonymous)
+                print(f"已添加虚拟目录: {virtual_path} -> {physical_path} (匿名访问: {'是' if allow_anonymous else '否'})")
+                
+            elif choice == '6':  # 删除虚拟目录
+                if not self.virtual_directories:
+                    print("没有可删除的虚拟目录")
+                    continue
+                    
+                print("\n当前虚拟目录列表:")
+                print("0. 取消,返回上级菜单")
+                for i, (vpath, info) in enumerate(self.virtual_directories.items()):
+                    if vpath == '/':  # 跳过根目录
+                        continue
+                    print(f"{i}. {vpath} -> {info['physical_path']}")
+                    
+                try:
+                    index = int(input("请输入要删除的目录编号: ").strip())
+                    vpaths = [p for p in self.virtual_directories.keys() if p != '/']
+                    if index == 0:
+                        continue
+                    if 0 <= index < len(vpaths):
+                        vpath = vpaths[index]
+                        self.remove_virtual_directory(vpath)
+                        print(f"已删除虚拟目录: {vpath}")
+                    else:
+                        print("无效的目录编号")
+                except ValueError:
+                    print("请输入有效的数字")
+                    
+            elif choice == '7':  # 退出程序
+                if self.running:
+                    self.stop()
+                print("程序已退出,ctrl+c退出python进程")
+                sys.exit(0)
+                
+            else:
+                print("无效的选择，请输入 0-7 之间的数字")    
     def restart(self):
         """Safely restart the server"""
         if self.running:
@@ -416,9 +539,12 @@ class FileServer:
             server_thread = threading.Thread(target=self.server.serve_forever)
             check_timeout_thread = threading.Thread(target=self.timeout_check_task, daemon=True)
 
+
             server_thread.daemon = True
             server_thread.start()
+
             check_timeout_thread.start()
+
             print("服务器启动完成，运行中...")
         except Exception as e:
             self.log(f"启动服务器出错: {str(e)}")

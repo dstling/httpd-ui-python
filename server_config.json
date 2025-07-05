@@ -3,16 +3,36 @@
     "listen_port": 8000,
     "virtual_directories": {
         "/": {
-            "physical_path": "C:/Users/Administrator/Desktop/python-pro",
+            "physical_path": "C:\\Users\\Administrator\\Desktop\\python-pro\\httpd-ui-test",
             "allow_anonymous": false
         },
         "/download": {
-            "physical_path": "/home/user/\u8fc5\u96f7\u4e0b\u8f7d",
+            "physical_path": "E:/\u8fc5\u96f7\u4e0b\u8f7d",
             "allow_anonymous": true
+        },
+        "/\u5de5\u4f5c": {
+            "physical_path": "E:/\u5de5\u4f5c",
+            "allow_anonymous": false
+        },
+        "/\u684c\u9762": {
+            "physical_path": "C:/Users/Administrator/Desktop",
+            "allow_anonymous": false
+        },
+        "/test-monitor": {
+            "physical_path": "C:/Users/Administrator/Desktop/python-pro/monitor_http_server",
+            "allow_anonymous": false
+        },
+        "/develop": {
+            "physical_path": "U:/develop",
+            "allow_anonymous": false
+        },
+        "/win10Vmware": {
+            "physical_path": "G:/vmware-work/win10-x64-\u65b0\u5b89\u88c5\u5907\u4efd",
+            "allow_anonymous": false
         }
     },
     "enable_authentication": false,
     "auth_username": "admin",
     "auth_password": "b03dcba73dccfc8fb91f20940e25410fb9ac4ebb12984f3149a7c7eab8567b44:d65bab176620e47b2f4678a83e1b8c13",
-    "logined_timeout": "10"
+    "logined_timeout": "5"
 }
