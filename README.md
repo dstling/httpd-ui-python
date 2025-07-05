@@ -13,8 +13,16 @@ linux:  sudo apt install python3
 
 3.cd /path/to/httpd-ui-python
 
-4.建议第一运行使用命令行方式，程序会自动检测安装python运行依赖，windows and linux皆这样运行，带界面
-!!!请务必删除server_config.json文件!!!系统首次运行会自己创建一个符合你自己的json配置文件
+4.建议第一次运行使用命令行方式
+
+程序会自动检测安装python运行依赖，windows and linux皆这样运行，带界面
+
+!!!请务必删除server_config.json文件!!!
+
+系统首次运行会自己创建一个符合你自己的json配置文件
+
+运行：
+
 python3 main.py  
 
 
