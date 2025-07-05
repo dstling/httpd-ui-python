@@ -14,11 +14,15 @@ class ServerManagerApp:
         # 初始化文件服务器实例
         self.file_server = FileServer() #从这里开始初始化
         self.file_server.set_log_callback(self.log)  #设置日志回调 file_server可以使用日志输出到界面
+        self.file_server.set_interface_cmd_thread(False)
 
         #self.root.title(f"文件服务器管理（支持虚拟目录）")
         self.root.title(f"{self.file_server.server_name}-{self.file_server.server_version} powered by:{self.file_server.server_by}")
         self.root.geometry("700x850")
         self.root.resizable(True, True)
+
+        # 设置主窗口图标
+        self.set_window_icon()  # 新增：设置窗口图标        
 
         # Create log directory if not exists
         self.log_dir = os.path.join(os.getcwd(), "log")
@@ -47,14 +51,50 @@ class ServerManagerApp:
         self.setup_tray_icon()  # 新增初始化
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)  # 修改为新的关闭处理方法
 
+    def set_window_icon(self):
+        """设置主窗口图标"""
+        try:
+            # 获取当前脚本所在目录
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            system = platform.system()
+            
+            if system == "Windows":
+                icon_path = os.path.join(base_dir, "icon.ico")
+                print(f"正在设置主窗口图标: {icon_path}")
+                
+                if os.path.exists(icon_path):
+                    self.root.iconbitmap(icon_path)  # 设置窗口图标
+                    print(f"已设置主窗口图标: {icon_path}")
+                else:
+                    print(f"警告: 主窗口图标文件不存在: {icon_path}")
+            else:  # Linux系统
+                # 尝试使用PNG格式图标
+                icon_path = os.path.join(base_dir, "icon.png")
+                print(f"尝试使用PNG图标: {icon_path}")
+                
+                if os.path.exists(icon_path):
+                    try:
+                        # 使用PIL加载PNG图像
+                        from PIL import Image, ImageTk
+                        img = Image.open(icon_path)
+                        icon = ImageTk.PhotoImage(img)
+                        self.root.tk.call('wm', 'iconphoto', self.root._w, icon)
+                        print(f"已设置PNG格式主窗口图标: {icon_path}")
+                    except ImportError:
+                        print("警告: 缺少PIL库，无法加载PNG图标")
+                    except Exception as e:
+                        print(f"设置PNG图标时出错: {str(e)}")
+                else:
+                    print(f"警告: Linux图标文件不存在: {icon_path}")
+        except Exception as e:
+            print(f"设置主窗口图标时出错: {str(e)}")
+
     def setup_tray_icon(self):
         """初始化系统托盘图标"""
         system = platform.system()
         
         if system == "Windows":
             self.setup_windows_tray()
-        elif system == "Darwin":
-            self.setup_macos_tray()
         else:  # Linux
             self.setup_linux_tray()
 
@@ -98,29 +138,6 @@ class ServerManagerApp:
     def show_tray_menu(self, event):
         """显示托盘菜单"""
         self.tray_menu.post(event.x_root, event.y_root)
-
-    def setup_macos_tray(self):
-        """macOS 托盘实现"""
-        try:
-            import rumps
-            class MacTrayApp(rumps.App):
-                def __init__(self, parent):
-                    super().__init__("FileServer", icon="icon.png")
-                    self.parent = parent
-                    self.menu = ["显示窗口", "退出"]
-                
-                @rumps.clicked("显示窗口")
-                def show_window(self, _):
-                    self.parent.show_window()
-                
-                @rumps.clicked("退出")
-                def quit_app(self, _):
-                    self.parent.quit_app()
-            
-            self.tray_app = MacTrayApp(self)
-            threading.Thread(target=self.tray_app.run).start()
-        except ImportError:
-            self.log("警告：未安装rumps，无法使用系统托盘")
 
     def setup_linux_tray(self):
         """Linux 托盘实现"""
@@ -233,8 +250,6 @@ class ServerManagerApp:
         system = platform.system()
         if system == "Windows":
             self.default_font = ("Microsoft YaHei UI", 10)
-        elif system == "Darwin":  # macOS
-            self.default_font = ("PingFang SC", 10)
         else:  # Linux 和其他系统
             self.default_font = ("WenQuanYi Micro Hei", 10)
 

@@ -49,6 +49,7 @@ class FileServer:
         self.running = False
         self.running_check(f"{self.server_version},listen_port:{self.listen_port}")
         self.log_callback = None #日志变量
+        self.run_interface_cmd_thread=True
 
         self.default_password = "admin123456" #用于没有json文件时生成默认的hash密码
         self.auth_username = "admin"
@@ -61,13 +62,12 @@ class FileServer:
 
         self.root_directory = self.get_root_directory()
 
-        interface_cmd_thread = threading.Thread(target=self.interface_cmd_task, daemon=True)
-        interface_cmd_thread.start() #无窗口模式下的参数设置窗口
-
 
     def set_log_callback(self, callback):
         self.log_callback = callback
 
+    def set_interface_cmd_thread(self,runFlag=False):
+        self.run_interface_cmd_thread =  runFlag          
     def log(self, message):
         if self.log_callback:
             self.log_callback(message)
@@ -544,6 +544,11 @@ class FileServer:
             server_thread.start()
 
             check_timeout_thread.start()
+            
+            if(self.run_interface_cmd_thread):
+                interface_cmd_thread = threading.Thread(target=self.interface_cmd_task, daemon=True)
+                interface_cmd_thread.start() #无窗口模式下的参数设置窗口
+
 
             print("服务器启动完成，运行中...")
         except Exception as e:

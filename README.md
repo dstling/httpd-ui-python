@@ -5,7 +5,11 @@
 
 windows:  https://www.python.org/ftp/python/3.12.0/python-3.12.0-amd64.exe
 
-linux:  sudo apt install python3  
+linux:  
+
+sudo apt install python3  
+
+sudo apt-get install python3-pil python3-pystray python3-pil.imagetk
 
 或者源码编译： https://www.python.org/ftp/python/3.12.0/Python-3.12.0.tar.xz
 

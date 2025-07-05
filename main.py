@@ -47,7 +47,6 @@ def install_dependencies(modules):
     # 平台特定依赖映射
     platform_modules = {
         'Windows': ['pystray', 'PIL'],  # 修改为pystray
-        'Darwin': ['rumps', 'PIL'],
         'Linux': ['pystray', 'PIL']
     }
     
